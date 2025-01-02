@@ -19,19 +19,34 @@ To run the project, follow these steps:
 	# DAGSTER_POSTGRES_USER=dagster_admin
    ```
 
-1. **Build and Start Docker Containers**:
+2. **Build and start docker containers**:
    ```sh
    docker-compose up --build
    ```
 
-2. **Access Dagster Webserver**:
+3. **Access dagster webserver**:
    Open your browser and navigate to `http://localhost:3000` to access the Dagster webserver.
 
-3. **Run the Data Ingestion Job**:
+4. **Run the data ingestion job**:
    Trigger the [jhu_csse_covid_19_data_ingestion job](http://localhost:3000/locations/jhu_csse_covid_19/jobs/jhu_csse_covid_19_data_ingestion) from the Dagster webserver to start the data ingestion and transformation process.
 
+5. **Access the datasets in the data storage (Postgres)**:
+	Use your preferred client to access the Postgres database. The credentials to use are:
+	* hostname: 
+		* `localhost`
+	* post:
+		* 5433
+	* database: 
+		* default: `postgres`
+		* or use whatever you have defined in the `JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__DATABASE` env variable
+	* username:
+		* default: `admin`
+		* or use whatever you have defined in the `JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__USERNAME` env variable
+	* password:
+		* use whatever you have defined in the `JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__DATABASE` env variable
 
-## Tech Stack and Key Components
+
+## Tech Stack, Key Components and Design Pattern
 
 ### 1. Dagster
 
@@ -57,6 +72,16 @@ dbt (data build tool) is used for transforming the data in the data storage. It 
 * Works within the ELT paradigm: It focuses entirely on transforming raw data into clean, analytics-ready datasets, following the modern ELT paradigm.
 * Declarative and configurable: Transformations are written as SQL models, and dependencies between them are defined declaratively
 * Open-Source with strong community support: dbt is open-source and backed by an active community that contributes plugins, adapters, and support.
+
+### 4. Medallion Architecture
+
+A medallion architecture is a data design pattern used to organize data logically. The data are organized in three layers:
+
+* Bronze: The landing area for raw data from the source system.
+* Silver: Contains the cleansed and conformed data from the Bronze layer.
+* Gold: Contains the consumption-ready data; Used for reporting and has read-optimized data models with fewer joins.
+
+These three layers are represented in Postgres as schema.
 
 
 ## Data Analysis
