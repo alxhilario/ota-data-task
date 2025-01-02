@@ -1,12 +1,12 @@
 # OTA Data Task
 
-This project is designed to ingest, process, and analyze COVID-19 data from the JHU CSSE repository using a combination of Dagster, dlt, and dbt.
+This project is designed to ingest, process, and analyze [COVID-19 data from the JHU CSSE repository](https://github.com/CSSEGISandData/COVID-19/tree/master) using a combination of Dagster, dlt, and dbt.
 
 ## Running the Project
 
 To run the project, follow these steps:
 
-1. **Create a .env file containing the database credentials**:
+1. **Create a .env file in the project root directory containing the database credentials**:
    ```sh
 	# required env variables
 	DAGSTER_POSTGRES_PASSWORD=<ADD YOUR PASSWORD HERE>
