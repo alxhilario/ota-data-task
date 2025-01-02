@@ -1,0 +1,34 @@
+models:
+  - name: gold_global_reports
+
+    config:
+      meta:
+        dagster:
+          group: jhu_csse_covid_19
+      contract:
+        enforced: true
+  
+    columns:
+      - name: report_date 
+        data_type: date
+        constraints:
+          - type: not_null
+      - name: location_id
+        constraints:
+          - type: not_null
+          - type: foreign_key
+            to: ref('gold_locations')
+            to_columns: [id]
+        data_type: integer
+      - name: confirmed
+        data_type: integer
+      - name: deaths
+        data_type: integer
+      - name: recovered 
+        data_type: integer
+      - name: active
+        data_type: integer
+      - name: process_date
+        data_type: timestamp
+        onstraints:
+          - type: not_null

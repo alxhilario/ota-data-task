@@ -1,0 +1,147 @@
+services:
+  # Destination storage of the processed dataset
+  data_storage:
+    image: postgres:11
+    container_name: data_storage
+    ports:
+      - 5433:5432
+    environment:
+      POSTGRES_DB: "${JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__DATABASE:-postgres}"
+      POSTGRES_USER: "${JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__USERNAME:-admin}"
+      POSTGRES_PASSWORD: "$JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__PASSWORD"
+    networks:
+      - docker_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d postgres"]
+      interval: 10s
+      timeout: 8s
+      retries: 5
+
+  # This service runs the gRPC server that loads your user code, in both dagster-webserver
+  # and dagster-daemon. By setting DAGSTER_CURRENT_IMAGE to its own image, we tell the
+  # run launcher to use this same image when launching runs in a new container as well.
+  # Multiple containers like this can be deployed separately - each just needs to run on
+  # its own port, and have its own entry in the workspace.yaml file that's loaded by the
+  # webserver.
+  dagster_user_code:
+    build:
+      context: .
+      dockerfile: ./Dockerfile_user_code
+      args:
+        - DBT_DB="${JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__DATABASE:-postgres}"
+        - DBT_USER="${JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__USERNAME:-admin}"
+        - DBT_PASS="$JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__PASSWORD"
+    container_name: dagster_user_code
+    image: dagster_user_code_image
+    restart: always
+    environment:
+      DAGSTER_CURRENT_IMAGE: dagster_user_code_image
+      DAGSTER_POSTGRES_DB: "${DAGSTER_POSTGRES_DB:-postgres}" 
+      DAGSTER_POSTGRES_USER: "${DAGSTER_POSTGRES_USER:-dagster_admin}"
+      DAGSTER_POSTGRES_PASSWORD: $DAGSTER_POSTGRES_PASSWORD
+      JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__DATABASE: "${JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__DATABASE:-postgres}"
+      JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__USERNAME: "${JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__USERNAME:-admin}"
+      JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__PASSWORD: "$JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__PASSWORD"
+      JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__HOST: data_storage
+      DBT_DB: "${JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__DATABASE:-postgres}"
+      DBT_USER: "${JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__USERNAME:-admin}"
+      DBT_PASS: "$JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__PASSWORD"
+      DBT_HOST: data_storage
+    networks:
+      - docker_network
+    volumes:
+      - /tmp:/tmp
+
+  # This service runs the postgres DB used by dagster for run storage, schedule storage,
+  # and event log storage. Depending on the hardware you run this Compose on, you may be able
+  # to reduce the interval and timeout in the healthcheck to speed up your `docker-compose up` times.
+  dagster_storage:
+    image: postgres:11
+    container_name: dagster_storage
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_DB: "${DAGSTER_POSTGRES_DB:-postgres}" 
+      POSTGRES_USER: "${DAGSTER_POSTGRES_USER:-dagster_admin}"
+      POSTGRES_PASSWORD: "$DAGSTER_POSTGRES_PASSWORD"
+    networks:
+      - docker_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dagster_admin -d postgres"]
+      interval: 10s
+      timeout: 8s
+      retries: 5
+
+  # This service runs dagster-webserver, which loads your user code from the user code container.
+  # Since our instance uses the QueuedRunCoordinator, any runs submitted from the webserver will be put on
+  # a queue and later dequeued and launched by dagster-daemon.
+  dagster_webserver:
+    build:
+      context: .
+      dockerfile: ./Dockerfile_dagster
+    entrypoint:
+      - dagster-webserver
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "3000"
+      - -w
+      - workspace.yaml
+    container_name: dagster_webserver
+    expose:
+      - "3000"
+    ports:
+      - "3000:3000"
+    environment:
+      DAGSTER_POSTGRES_DB: "${DAGSTER_POSTGRES_DB:-postgres}" 
+      DAGSTER_POSTGRES_USER: "${DAGSTER_POSTGRES_USER:-dagster_admin}"
+      DAGSTER_POSTGRES_PASSWORD: "$DAGSTER_POSTGRES_PASSWORD"
+    volumes: # Make docker client accessible so we can terminate containers from the webserver
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/io_manager_storage:/tmp/io_manager_storage
+    networks:
+      - docker_network
+    depends_on:
+      dagster_storage:
+        condition: service_healthy
+      dagster_user_code:
+        condition: service_started
+
+  # This service runs the dagster-daemon process, which is responsible for taking runs
+  # off of the queue and launching them, as well as creating runs from schedules or sensors.
+  dagster_daemon:
+    build:
+      context: .
+      dockerfile: ./Dockerfile_dagster
+    entrypoint:
+      - dagster-daemon
+      - run
+    container_name: dagster_daemon
+    restart: on-failure
+    environment:
+      DAGSTER_POSTGRES_DB: "${DAGSTER_POSTGRES_DB:-postgres}" 
+      DAGSTER_POSTGRES_USER: "${DAGSTER_POSTGRES_USER:-dagster_admin}"
+      DAGSTER_POSTGRES_PASSWORD: $DAGSTER_POSTGRES_PASSWORD
+      JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__DATABASE: "${JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__DATABASE:-postgres}"
+      JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__USERNAME: "${JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__USERNAME:-admin}"
+      JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__PASSWORD: $JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__PASSWORD 
+      JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__HOST: data_storage
+      DBT_DB: "${JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__DATABASE:-postgres}"
+      DBT_USER: "${JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__USERNAME:-admin}"
+      DBT_PASS: "$JHU_CSSE_COVID_19__DESTINATION__POSTGRES__CREDENTIALS__PASSWORD"
+      DBT_HOST: data_storage
+    volumes: # Make docker client accessible so we can launch containers using host docker
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/io_manager_storage:/tmp/io_manager_storage
+    networks:
+      - docker_network
+    depends_on:
+      dagster_storage:
+        condition: service_healthy
+      dagster_user_code:
+        condition: service_started
+
+networks:
+  docker_network:
+    driver: bridge
+    name: docker_network

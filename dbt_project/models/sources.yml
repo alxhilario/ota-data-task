@@ -1,0 +1,19 @@
+version: 2
+
+sources:
+  - name: bronze_jhu_csse_repo
+    database: postgres
+    schema: bronze
+    tables:
+      - name: uid_iso_fips_lookup
+        meta:
+            dagster:
+              asset_key: ["uid_iso_fips_lookup"]
+      - name: csse_covid_19_daily_reports_global
+        meta:
+          dagster:
+            asset_key: ["daily_reports_global"]
+      - name: csse_covid_19_daily_reports_us
+        meta:
+          dagster:
+            asset_key: ["daily_reports_us"]

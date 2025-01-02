@@ -1,0 +1,39 @@
+models:
+  - name: silver_global_reports
+
+    config:
+      meta:
+        dagster:
+          group: jhu_csse_covid_19
+      contract:
+        enforced: true
+  
+    columns:
+      - name: fips 
+        data_type: integer
+      - name: admin2
+        data_type: varchar
+      - name: province_state
+        data_type: varchar
+      - name: country_region 
+        data_type: varchar
+      - name: last_update
+        data_type: timestamp
+      - name: latitude
+        data_type: float8 
+      - name: longtitude 
+        data_type: float8
+      - name: confirmed
+        data_type: integer
+      - name: deaths
+        data_type: integer
+      - name: recovered 
+        data_type: integer
+      - name: active
+        data_type: integer
+      - name: incident_rate
+        data_type: float(8) 
+      - name: case_fatality_ratio
+        data_type: float(8) 
+      - name: process_date
+        data_type: timestamp

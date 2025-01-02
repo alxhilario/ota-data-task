@@ -1,0 +1,45 @@
+models:
+  - name: gold_locations
+  
+    config:
+      meta:
+        dagster:
+          group: jhu_csse_covid_19
+      contract:
+        enforced: true
+    
+    constraints:
+      - type: primary_key
+        columns: [id]
+  
+    columns:
+      - name: id 
+        data_type: integer
+        constraints:
+          - type: not_null
+      - name: iso2
+        data_type: varchar
+      - name: iso3
+        data_type: varchar
+      - name: code3
+        data_type: integer
+      - name: fips 
+        data_type: integer
+      - name: admin2
+        data_type: varchar
+      - name: province_state 
+        data_type: varchar 
+      - name: country_region 
+        data_type: varchar
+      - name: latitude
+        data_type: float8
+      - name: longtitude
+        data_type: float8
+      - name: combined_key 
+        data_type: varchar
+      - name: population
+        data_type: float(8)
+      - name: process_date
+        data_type: timestamp
+        constraints:
+          - type: not_null

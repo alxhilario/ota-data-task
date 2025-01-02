@@ -1,0 +1,39 @@
+FROM python:3.10-slim
+
+ARG DBT_DB
+ARG DBT_USER
+ARG DBT_PASS
+ENV DBT_DB $DBT_DB
+ENV DBT_USER $DBT_USER
+ENV DBT_PASS $DBT_PASS
+
+# Checkout and install dagster libraries needed to run the gRPC server
+# exposing the repository to dagster-webserver and dagster-daemon, and to load the DagsterInstance
+RUN pip install uv
+RUN uv pip install \
+    dagster \
+    dagster-postgres \
+    dagster-docker \
+    dagster-embedded-elt \
+    dagster-dbt --system
+
+COPY dlt_pipeline/requirements.txt requirements.txt
+RUN uv pip install -r requirements.txt --system
+
+COPY dbt_project/requirements.txt requirements.txt
+RUN uv pip install -r requirements.txt --system
+
+# Add repository code
+WORKDIR /opt/dagster/app
+
+COPY repo.py /opt/dagster/app
+COPY dlt_pipeline /opt/dagster/app/dlt_pipeline
+COPY dbt_project /opt/dagster/app/dbt_project
+RUN cd /opt/dagster/app/dbt_project && dbt parse
+
+# Run dagster gRPC server on port 4000
+EXPOSE 4000
+
+# CMD allows this to be overridden from run launchers or executors that want
+# to run other commands against your repository
+CMD ["dagster", "api", "grpc", "-h", "0.0.0.0", "-p", "4000", "-f", "repo.py"]

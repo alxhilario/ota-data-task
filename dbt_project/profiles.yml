@@ -1,0 +1,12 @@
+dbt_project:
+  target: dev
+  outputs:
+    dev:
+      threads: 24
+      type: postgres
+      dbname: "{{ env_var('DBT_DB', 'postgres') }}"
+      schema: silver
+      host: "{{ env_var('DBT_HOST', 'localhost') }}"
+      pass: "{{ env_var('DBT_PASS') }}"
+      user: "{{ env_var('DBT_USER', 'admin') }}"
+      port: 5432
